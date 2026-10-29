@@ -272,6 +272,8 @@ ICONO_LUPA = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11
 ICONO_MENU = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>'
 ICONO_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>'
 FECHA = date.fromisoformat(d['extraido'][:10]).strftime('%d/%m/%Y')
+import hashlib
+VER = {f: hashlib.sha1(open(os.path.join(AQUI, 'sitio_src', f), 'rb').read()).hexdigest()[:8] for f in ('estilo.css', 'app.js')}
 
 
 def pagina(p, cuerpo, descripcion='', imagen=None, titulo_doc=None):
@@ -296,9 +298,9 @@ def pagina(p, cuerpo, descripcion='', imagen=None, titulo_doc=None):
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap">
-<link rel="stylesheet" href="{r}assets/estilo.css">
+<link rel="stylesheet" href="{r}assets/estilo.css?v={VER['estilo.css']}">
 <script type="speculationrules">{{"prefetch":[{{"where":{{"and":[{{"href_matches":"*.html","relative_to":"document"}},{{"not":{{"selector_matches":"[target]"}}}}]}},"eagerness":"moderate"}}]}}</script>
-<script src="{r}assets/app.js" defer></script>
+<script src="{r}assets/app.js?v={VER['app.js']}" defer></script>
 </head>
 <body>
 <a class="saltar" href="#contenido">Saltar al contenido</a>
