@@ -7,6 +7,8 @@ Uso:  python3 generar.py datos_finales.json salida/
 """
 import json, re, sys, os, html, shutil, glob, unicodedata
 from datetime import date
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import paisaje
 
 SRC, OUT = sys.argv[1], sys.argv[2]
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -165,6 +167,24 @@ def ano(c):
 
 # ---------- HTML del contenido migrado ----------
 def prepara_html(desde, h, primera_img_prioritaria=False):
+    antiguas = re.findall(r'<img[^>]*src="https://(?:sites\.google\.com|lh3\.googleusercontent\.com/docsubipk)[^"]*"[^>]*/?>', h)
+    if antiguas:
+        n = len(antiguas)
+        url = P[desde].get('url')
+        aviso = (f'<p class="fotos-site"><a href="{esc(url)}" target="_blank" rel="noopener">'
+                 f'Ver {"la foto" if n == 1 else f"las {n} fotos"} de esta página en el Site del proyecto<span class="sr"> (se abre en otra pestaña)</span></a></p>') if url else ''
+        primera = [True]
+        def galeria(m):
+            if 'drive:' in m.group(0):
+                return m.group(0)
+            if primera[0]:
+                primera[0] = False
+                return aviso
+            return ''
+        h = re.sub(r'<div class="galeria(?: sola)?">.*?</div>', galeria, h, flags=re.S)
+        h = re.sub(r'<img[^>]*src="https://(?:sites\.google\.com|lh3\.googleusercontent\.com/docsubipk)[^"]*"[^>]*/?>', '', h)
+        if primera[0] and aviso:
+            h = aviso + h
     # enlaces internos
     h = re.sub(r'href="#([a-z0-9-]+)"', lambda m: f'href="{rel(desde, m.group(1))}"' if m.group(1) in P else m.group(0), h)
     # títulos en mayúsculas → tipo frase
@@ -325,17 +345,27 @@ def pie_original(p):
             f'<a href="{esc(p["url"])}" target="_blank" rel="noopener">Ver la página original<span class="sr"> (se abre en otra pestaña)</span></a></footer>')
 
 
+def banda(p):
+    est = paisaje.estacion(p.get('curso'))
+    etiqueta = f'<span class="banda-etiqueta">Curso {p["curso"]} · {paisaje.NOMBRE[est]}</span>' if p.get('curso') else ''
+    return f'<div class="banda">{paisaje.svg(p["id"], p.get("curso"), 1200, 200)}{etiqueta}</div>'
+
+
 def cabecera(p, sub=''):
-    return f'{migas(p)}<h1 class="titulo">{esc(nombre_seccion(p) if p["tipo"] in ("curso", "sda-index", "part-index") else frase(p["titulo"]))}</h1>' + (f'<p class="subtitulo">{sub}</p>' if sub else '')
+    return f'{banda(p)}{migas(p)}<h1 class="titulo">{esc(nombre_seccion(p) if p["tipo"] in ("curso", "sda-index", "part-index") else frase(p["titulo"]))}</h1>' + (f'<p class="subtitulo">{sub}</p>' if sub else '')
 
 
 def tarjeta(desde, s, nivel='h3'):
     m = s.get('meta', {})
-    src, alt_src = portada_src(m.get('portada'))
     img = ''
-    if src:
-        extra = f' data-alt="{esc(alt_src)}"' if alt_src else ''
-        img = f'<img src="{esc(src)}"{extra} alt="" loading="lazy" decoding="async">'
+    if str(m.get('portada', '')).startswith('drive:'):
+        src, alt_src = portada_src(m['portada'])
+        img = f'<img src="{esc(src)}" data-alt="{esc(alt_src)}" alt="" loading="lazy" decoding="async">'
+    else:
+        img = paisaje.svg(s['id'], s.get('curso'), 400, 230, capas=3)
+    area = re.split(r'\s*(?:·|,|;|/|\n| - |–)\s*', m.get('areas', ''))[0].strip(' .:')
+    if area and len(area) <= 34:
+        img += f'<span class="area">{esc(area)}</span>'
     texto = ' '.join([s['titulo'], m.get('autoria', ''), m.get('etapa', ''), m.get('areas', ''), s['texto'][:500]])
     return (f'<li data-texto="{esc(texto)}"><article class="tarjeta"><div class="img">{img}</div><div class="cuerpo">'
             f'<{nivel}><a href="{rel(desde, s["id"])}">{esc(s["titulo"])}</a></{nivel}>'
@@ -347,15 +377,9 @@ def tarjeta(desde, s, nivel='h3'):
 
 # ---------- vistas ----------
 def v_inicio(p):
-    imgs = re.findall(r'<img[^>]*src="([^"]+)"', P['curso-22-23--transformacion-del-espacio']['html'])
-    imgs2 = re.findall(r'<img[^>]*src="([^"]+)"', P['curso-23-24--transformacion-del-espacio']['html'])
     total = sum(1 for x in paginas if x['tipo'] == 'sda')
     docentes = len({' '.join(sorted(slug(x['titulo']).split('-'))) for x in paginas if x['tipo'] == 'part'})
-    sedes = ''
-    if imgs and imgs2:
-        sedes = (f'<div class="sedes">'
-                 f'<figure><img src="{imgs[-1]}" alt="Aula del Futuro de Cabezuela del Valle" fetchpriority="high"><figcaption><a href="{rel("inicio", "curso-22-23--transformacion-del-espacio")}">Cabezuela del Valle</a>, curso 22-23</figcaption></figure>'
-                 f'<figure><img src="{imgs2[-1]}" alt="Aula del Futuro de Navaconcejo"><figcaption><a href="{rel("inicio", "curso-23-24--transformacion-del-espacio")}">Navaconcejo</a>, curso 23-24</figcaption></figure></div>')
+    sedes = f'<div class="panorama">{paisaje.svg("portada-valle", "22-23", 900, 620)}</div>'
     h = (f'<section class="portada" aria-labelledby="titulo-portada"><div>'
          f'<h1 id="titulo-portada">Dos sedes, dos aulas, un mismo proyecto</h1>'
          f'<p>El IES Valle del Jerte transforma sus espacios de Cabezuela del Valle y Navaconcejo para aprender investigando, creando y colaborando. Desde el curso 2022-2023 se han hecho {total} situaciones de aprendizaje con {docentes} docentes.</p>'
@@ -367,11 +391,13 @@ def v_inicio(p):
         ns = len(hijos.get(si['id'], [])) if si else 0
         np_ = len(hijos.get(pi['id'], [])) if pi else 0
         det = (f'{ns} situaciones' + (f', {np_} docentes' if np_ else '')) if ns else 'En marcha'
-        h += f'<li><a class="curso" href="{rel("inicio", c["id"])}"><b>{c["curso"]}</b><span>{det}</span></a></li>'
+        est = paisaje.estacion(c['curso'])
+        h += (f'<li><a class="curso" href="{rel("inicio", c["id"])}">{paisaje.svg("curso-" + c["curso"], c["curso"], 320, 90, capas=3, clase="mini")}'
+              f'<b>{c["curso"]}</b><span>{det}</span><span class="estacion">{paisaje.NOMBRE[est].capitalize()}</span></a></li>')
     h += '</ul><h2 class="seccion-titulo">El proyecto</h2>'
     cuerpo = re.sub(r'^\s*<img[^>]*/?>', '', p['html'])  # la primera foto ya está en la portada
     h += f'<div class="contenido lectura">{drive_cards(prepara_html("inicio", cuerpo))}</div>'
-    return pagina(p, h, imagen=imgs[-1] if imgs else None)
+    return pagina(p, h)
 
 
 def v_curso(p):
