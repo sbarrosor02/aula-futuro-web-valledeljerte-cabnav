@@ -1,0 +1,21 @@
+{
+  "_nota": "Ejemplo de formato. Los archivos que empiezan por _ no se publican. Copia este archivo con otro nombre (p. ej. mision-cern.json) y rellénalo.",
+  "titulo": "Título de la situación de aprendizaje",
+  "autoria": "Nombre Apellido Apellido y Nombre Apellido Apellido",
+  "etapa": "3º ESO",
+  "areas": "Matemáticas · Física y Química",
+  "docentes": ["Nombre Apellido Apellido"],
+  "resumen": "Una o dos frases que expliquen la SdA. Aparece en la tarjeta del listado y en los resultados de Google.",
+  "secciones": [
+    { "titulo": "Pregunta o reto", "texto": "¿Qué pregunta guía el trabajo del alumnado?" },
+    { "titulo": "Producto final", "texto": "Qué se entrega al final.\n\nCada párrafo se separa con una línea en blanco." },
+    { "titulo": "Zonas del Aula del Futuro", "texto": "Investiga, Crea, Presenta…" }
+  ],
+  "fotos": [
+    "https://drive.google.com/file/d/ID_DE_LA_FOTO_1/view?usp=sharing",
+    "https://drive.google.com/file/d/ID_DE_LA_FOTO_2/view?usp=sharing"
+  ],
+  "documentos": [
+    { "nombre": "Ficha completa de la SdA.pdf", "enlace": "https://drive.google.com/file/d/ID_DEL_DOCUMENTO/view?usp=sharing" }
+  ]
+}
