@@ -347,10 +347,28 @@ def pie_original(p):
             f'<a href="{esc(p["url"])}" target="_blank" rel="noopener">Ver la página original<span class="sr"> (se abre en otra pestaña)</span></a></footer>')
 
 
+def tema_de(p):
+    if p['tipo'] != 'sda':
+        return None
+    m = p.get('meta', {})
+    return paisaje.tema(m.get('areas', ''), m.get('areas', ''), p['titulo'], p['titulo'], p['texto'][:1500])
+
+
+ZONA_RE = re.compile(r'(?i)zona\s*(investiga|explora|interact[uú]a|desarrolla|crea|presenta|intercambia)')
+
+
+def zonas_de(p):
+    vistas = {z.lower().replace('ú', 'u') for z in ZONA_RE.findall(p['texto'])}
+    return [z for z in paisaje.ZONAS + ['Intercambia'] if z.lower().replace('ú', 'u') in vistas]
+
+
 def banda(p):
     est = paisaje.estacion(p.get('curso'))
     etiqueta = f'<span class="banda-etiqueta">Curso {p["curso"]} · {paisaje.NOMBRE[est]}</span>' if p.get('curso') else ''
-    return f'<div class="banda">{paisaje.svg(p["id"], p.get("curso"), 1200, 200)}{etiqueta}</div>'
+    t = tema_de(p)
+    if t:
+        etiqueta = f'<span class="banda-etiqueta">{paisaje.NOMBRE_TEMA[t]} · curso {p["curso"]}</span>'
+    return f'<div class="banda">{paisaje.svg(p["id"], p.get("curso"), 1200, 200, tema_sda=t)}{etiqueta}</div>'
 
 
 def cabecera(p, sub=''):
@@ -364,7 +382,7 @@ def tarjeta(desde, s, nivel='h3'):
         src, alt_src = portada_src(m['portada'])
         img = f'<img src="{esc(src)}" data-alt="{esc(alt_src)}" alt="" loading="lazy" decoding="async">'
     else:
-        img = paisaje.svg(s['id'], s.get('curso'), 400, 230, capas=3)
+        img = paisaje.svg(s['id'], s.get('curso'), 400, 230, capas=3, tema_sda=tema_de(s))
     area = re.split(r'\s*(?:·|,|;|/|\n| - |–)\s*', m.get('areas', ''))[0].strip(' .:')
     if area and len(area) <= 34:
         img += f'<span class="area">{esc(area)}</span>'
@@ -381,7 +399,9 @@ def tarjeta(desde, s, nivel='h3'):
 def v_inicio(p):
     total = sum(1 for x in paginas if x['tipo'] == 'sda')
     docentes = len({' '.join(sorted(slug(x['titulo']).split('-'))) for x in paginas if x['tipo'] == 'part'})
-    sedes = f'<div class="panorama">{paisaje.svg("portada-valle", "22-23", 900, 620)}</div>'
+    extra = paisaje.zonas(900, 620) + paisaje.petalos('portada', 900, 620)
+    sedes = (f'<div class="panorama">{paisaje.svg("portada-valle", "22-23", 900, 620, extra=extra)}'
+             f'<p class="sr">Las seis zonas de aprendizaje del Aula del Futuro: {", ".join(paisaje.ZONAS)}.</p></div>')
     h = (f'<section class="portada" aria-labelledby="titulo-portada"><div>'
          f'<h1 id="titulo-portada">Dos sedes, dos aulas, un mismo proyecto</h1>'
          f'<p>El IES Valle del Jerte transforma sus espacios de Cabezuela del Valle y Navaconcejo para aprender investigando, creando y colaborando. Desde el curso 2022-2023 se han hecho {total} situaciones de aprendizaje con {docentes} docentes.</p>'
@@ -458,6 +478,9 @@ def v_sda(p):
         filas.append(('Curso y etapa', esc(m['etapa'])))
     if m.get('areas'):
         filas.append(('Áreas y materias', esc(m['areas'])))
+    zs = zonas_de(p)
+    if zs:
+        filas.append(('Zonas del aula', '<ul class="chips">' + ''.join(f'<li><span class="chip zona">{z}</span></li>' for z in zs) + '</ul>'))
     if p.get('docentes'):
         chips = ''.join(f'<li><a class="chip{" colabora" if e["rol"] == "colabora" else ""}" href="{rel(p["id"], e["id"])}">{esc(P[e["id"]]["titulo"])}'
                         + ('<span class="sr"> (colabora)</span>' if e['rol'] == 'colabora' else '') + '</a></li>' for e in p['docentes'])
