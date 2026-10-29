@@ -188,7 +188,7 @@ def prepara_html(desde, h, primera_img_prioritaria=False):
     # enlaces internos
     h = re.sub(r'href="#([a-z0-9-]+)"', lambda m: f'href="{rel(desde, m.group(1))}"' if m.group(1) in P else m.group(0), h)
     # títulos en mayúsculas → tipo frase
-    h = re.sub(r'<h2>(.*?)</h2>', lambda m: '<h2>' + (frase(m.group(1)) if '<' not in m.group(1) else m.group(1)) + '</h2>', h)
+    h = re.sub(r'<(h[23])>(.*?)</h[23]>', lambda m: f'<{m.group(1)}>' + (frase(m.group(2)) if '<' not in m.group(2) else m.group(2)) + f'</{m.group(1)}>', h)
     # fotos: cada una es un botón que abre el visor
     def foto(m):
         tag = m.group(0)

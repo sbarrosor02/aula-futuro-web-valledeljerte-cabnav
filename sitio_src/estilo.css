@@ -80,7 +80,7 @@ nav.arbol .sep { height: 1px; background: var(--line); margin: 10px; }
 
 @media (min-width: 901px) {
   .cabecera-movil { display: none; }
-  .Drawer, .Drawer:not(:popover-open) { display: block; position: sticky; top: 0; inset: auto; height: 100vh; width: auto; margin: 0; padding: 0; border: 0; border-right: 1px solid var(--line); background: var(--surface); overflow-y: auto; color: inherit; }
+  .Drawer, .Drawer:not(:popover-open) { display: block; inset: auto; position: sticky; top: 0; height: 100vh; width: auto; margin: 0; padding: 0; border: 0; border-right: 1px solid var(--line); background: var(--surface); overflow-y: auto; color: inherit; }
   .Drawer-scroller { display: block; }
   .Drawer-sheet { min-height: 100%; }
 }
@@ -172,8 +172,11 @@ h1.titulo { font: 800 clamp(2rem, 4.4vw, 3rem)/1.06 var(--f-display); letter-spa
 /* ---------- contenido migrado ---------- */
 .contenido { overflow-wrap: anywhere; }
 .contenido p { margin: 0 0 .9em; }
-.contenido h2 { font: 700 1.32rem/1.25 var(--f-display); margin: 1.8em 0 .55em; letter-spacing: -.005em; text-wrap: balance; }
-.contenido h3 { font: 700 1.12rem/1.3 var(--f-display); margin: 1.4em 0 .5em; }
+.contenido h2 { font: 800 clamp(1.4rem, 2.6vw, 1.75rem)/1.2 var(--f-display); margin: 2.2em 0 .7em; padding-top: .8em; border-top: 1px solid var(--line); letter-spacing: -.015em; text-wrap: balance; }
+.contenido > h2:first-child, .contenido > .galeria:first-child + h2 { margin-top: .4em; border-top: 0; padding-top: 0; }
+.contenido h3 { font: 700 1.14rem/1.3 var(--f-display); color: var(--hoja); margin: 1.6em 0 .4em; text-wrap: balance; }
+.contenido h2 + h3 { margin-top: .6em; }
+.contenido strong { font-weight: 700; color: var(--ink); }
 .contenido ul, .contenido ol { padding-left: 1.3em; margin: 0 0 1em; }
 .contenido li { margin: .2em 0; }
 .contenido li > p { margin: 0; }
