@@ -266,6 +266,7 @@ def pagina(p, cuerpo, descripcion='', imagen=None, titulo_doc=None):
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{esc(titulo_doc)}</title>
 <meta name="description" content="{esc(descripcion)}">
+<meta name="referrer" content="no-referrer">
 <meta property="og:title" content="{esc(p['titulo'])}">
 <meta property="og:description" content="{esc(descripcion)}">
 <meta property="og:type" content="website">
