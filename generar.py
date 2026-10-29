@@ -9,6 +9,7 @@ import json, re, sys, os, html, shutil, glob, unicodedata
 from datetime import date
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import paisaje
+import extras
 
 SRC, OUT = sys.argv[1], sys.argv[2]
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -204,7 +205,11 @@ def prepara_html(desde, h, primera_img_prioritaria=False):
     h = re.sub(r'<img[^>]*/?>', foto, h)
     h = h.replace('<br/>', '<br>')
     h = re.sub(r'^\s*(<br>\s*)+', '', h)
-    return h
+    # Jerarquía de títulos: los h3 que aparecen antes del primer h2 pasan a h2
+    i = h.find('<h2')
+    cabeza, resto = (h, '') if i < 0 else (h[:i], h[i:])
+    cabeza = re.sub(r'<h3>(.*?)</h3>', r'<h2>\1</h2>', cabeza)
+    return cabeza + resto
 
 
 def drive_cards(h):
@@ -238,7 +243,7 @@ def nav(desde):
     def li(pid, texto, extra=''):
         cur = ' aria-current="page"' if pid == desde else (' aria-current="true"' if pid in activos and P[pid]['tipo'] != 'curso' else '')
         return f'<li><a href="{rel(desde, pid)}"{cur}>{texto}{extra}</a>'
-    h = ['<ul>', li('inicio', 'Inicio') + '</li>', li('zonas', 'Zonas de aprendizaje') + '</li>', '<li class="sep" aria-hidden="true"></li>']
+    h = ['<ul>', li('inicio', 'Inicio') + '</li>', li('zonas', 'Zonas de aprendizaje') + '</li>', f'<li><a href="{rel(desde, "inicio")}#plano">Recorre el aula</a></li>', '<li class="sep" aria-hidden="true"></li>']
     for c in CURSOS:
         cur = ' aria-current="page"' if c['id'] == desde else ''
         h.append(f'<li class="grupo"><a href="{rel(desde, c["id"])}"{cur}><span>Curso {c["curso"]}</span><span class="ano">{ano(c["curso"])}</span></a><ul class="hijos">')
@@ -442,7 +447,29 @@ def v_inicio(p):
         est = paisaje.estacion(c['curso'])
         h += (f'<li><a class="curso" href="{rel("inicio", c["id"])}">{paisaje.svg("curso-" + c["curso"], c["curso"], 320, 90, capas=3, clase="mini")}'
               f'<b>{c["curso"]}</b><span>{det}</span><span class="estacion">{paisaje.NOMBRE[est].capitalize()}</span></a></li>')
-    h += '</ul><h2 class="seccion-titulo">El proyecto</h2>'
+    h += '</ul>'
+    cuentas_z = {z: len(ZONA_SDA[z]) for z in paisaje.ZONAS}
+    h += extras.plano(DESCRIPCION_ZONA, cuentas_z, 'zonas.html#zona-')
+    n_sda = {}
+    for c in CURSOS:
+        si = next((x for x in hijos.get(c['id'], []) if x['tipo'] == 'sda-index'), None)
+        n_sda[c['curso']] = len(hijos.get(si['id'], [])) if si else 0
+    h += extras.linea_tiempo(lambda pid: rel('inicio', pid), n_sda)
+    cursos_asc = sorted(n_sda)
+    doc_curso = []
+    for c in cursos_asc:
+        pi = next((x for x in hijos.get(f'curso-{c}', []) if x['tipo'] == 'part-index'), None)
+        doc_curso.append((c, len(hijos.get(pi['id'], [])) if pi else 0))
+    temas = {}
+    for s in paginas:
+        if s['tipo'] == 'sda':
+            t = tema_de(s)
+            k = paisaje.NOMBRE_TEMA[t] if t else 'Otros'
+            temas[k] = temas.get(k, 0) + 1
+    por_tema = sorted(temas.items(), key=lambda kv: (kv[0] == 'Otros', -kv[1]))
+    con_z = len({s['id'] for v in ZONA_SDA.values() for s in v})
+    h += extras.cifras(total, docentes, [(c, n_sda[c]) for c in cursos_asc], doc_curso, por_tema, con_z)
+    h += '<h2 class="seccion-titulo">El proyecto</h2>'
     cuerpo = re.sub(r'^\s*<img[^>]*/?>', '', p['html'])  # la primera foto ya está en la portada
     h += f'<div class="contenido lectura">{drive_cards(prepara_html("inicio", cuerpo))}</div>'
     return pagina(p, h)
@@ -488,7 +515,7 @@ def v_part_index(p):
     for x in lista:
         n = len(SDA_DE.get(x['id'], []))
         etiqueta = f'<span class="n">{n} {"situación" if n == 1 else "situaciones"}</span>' if n else ''
-        h += f'<li><a class="persona" href="{rel(p["id"], x["id"])}"><span>{esc(x["titulo"])}</span>{etiqueta}</a></li>'
+        h += f'<li><a class="persona" href="{rel(p["id"], x["id"])}">{extras.avatar(x["titulo"])}<span class="persona-nombre">{esc(x["titulo"])}</span>{etiqueta}</a></li>'
     h += '</ul>'
     return pagina(p, h + pie_original(p), descripcion=f'Docentes del Aula del Futuro del IES Valle del Jerte en el curso {ano(p["curso"])}.')
 
@@ -521,7 +548,7 @@ def v_sda(p):
 
 def v_part(p):
     lista = SDA_DE.get(p['id'], [])
-    h = cabecera(p, f'Docente participante en el curso {ano(p["curso"])}')
+    h = cabecera(p, f'Docente participante en el curso {ano(p["curso"])}').replace('<h1 class="titulo">', '<h1 class="titulo con-avatar">' + extras.avatar(p['titulo'], True), 1)
     if p['html']:
         h += f'<div class="contenido lectura">{drive_cards(prepara_html(p["id"], p["html"]))}</div>'
     if lista:

@@ -98,6 +98,35 @@
     }
   }
 
+  /* ---------- Plano del aula: sede y zona seleccionadas ---------- */
+  const datosPlano = $('#datos-plano');
+  if (datosPlano) {
+    const D = JSON.parse(datosPlano.textContent);
+    const panel = $('#plano-panel');
+    const plano = $('.plano');
+    let sede = 'navaconcejo', zona = 'Presenta';
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const sedeNombre = { navaconcejo: 'Navaconcejo', cabezuela: 'Cabezuela del Valle' };
+    const ancla = z => 'zona-' + z.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    function pinta() {
+      plano.dataset.sede = sede;
+      $$('.zona-plano').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.zona === zona)));
+      $$('.sede-selector button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sede === sede)));
+      const equipo = (D.equipamiento[sede] || {})[zona] || [];
+      const n = D.cuentas[zona];
+      let h = `<h3>${esc(zona)} <span>· ${sedeNombre[sede]}</span></h3><p class="pp-desc">${esc(D.descripcion[zona] || '')}</p>`;
+      h += equipo.length ? `<ul>${equipo.map(e => `<li>${esc(e)}</li>`).join('')}</ul>`
+        : `<p class="pp-vacio">El site del proyecto no detalla el equipamiento de esta zona en ${sedeNombre[sede]}.</p>`;
+      const otros = D.otros[sede] || [];
+      if (otros.length && !equipo.length) h += `<p class="pp-otros-t">Otros elementos del aula de ${sedeNombre[sede]}:</p><ul>${otros.map(e => `<li>${esc(e)}</li>`).join('')}</ul>`;
+      if (n) h += `<p><a class="boton" href="${RAIZ + D.enlace + ancla(zona)}">Ver las ${n} situaciones de aprendizaje que usan ${esc(zona)}</a></p>`;
+      panel.innerHTML = h;
+    }
+    $$('.zona-plano').forEach(b => b.addEventListener('click', () => { zona = b.dataset.zona; pinta(); }));
+    $$('.sede-selector button').forEach(b => b.addEventListener('click', () => { sede = b.dataset.sede; pinta(); }));
+    pinta();
+  }
+
   /* ---------- Filtro de situaciones de aprendizaje ---------- */
   const filtro = $('#filtro-sda');
   if (filtro) {
