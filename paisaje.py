@@ -156,7 +156,7 @@ def motivo(nombre, semilla, ancho, alto):
 ZONAS = ['Investiga', 'Explora', 'Interactúa', 'Desarrolla', 'Crea', 'Presenta']
 
 
-def zonas(ancho, alto):
+def zonas(ancho, alto, enlaces=None, cuentas=None):
     cx, cy, rx, ry = ancho * .5, alto * .3, ancho * .33, alto * .2
     nodos = [(cx + rx * math.cos(math.pi * (-.5 + i / 3)), cy + ry * math.sin(math.pi * (-.5 + i / 3))) for i in range(6)]
     lineas = []
@@ -167,11 +167,17 @@ def zonas(ancho, alto):
             lineas.append(f'<line x1="{a[0]:.0f}" y1="{a[1]:.0f}" x2="{b[0]:.0f}" y2="{b[1]:.0f}" style="--largo:{largo:.0f};--i:{len(lineas)}"/>')
     puntos = []
     for i, ((x, y), nombre) in enumerate(zip(nodos, ZONAS)):
-        w = 14 * len(nombre) + 62
-        puntos.append(f'<g class="nodo" style="--i:{i}" transform="translate({x:.0f},{y:.0f})">'
-                      f'<rect x="{-w/2:.0f}" y="-22" width="{w:.0f}" height="44" rx="22" fill="#ffffff" stroke="#9e1238" stroke-width="2"/>'
-                      f'<circle cx="{-w/2 + 22:.0f}" cy="0" r="7" fill="#9e1238"/>'
-                      f'<text x="{-w/2 + 38:.0f}" y="8" font-size="23" font-weight="700" fill="#1b201c" font-family="Bricolage Grotesque, system-ui, sans-serif">{nombre}</text></g>')
+        n = (cuentas or {}).get(nombre)
+        etiqueta = nombre + (f' {n}' if n else '')
+        w = 14 * len(etiqueta) + 62
+        nodo = (f'<g class="nodo" style="--i:{i}" transform="translate({x:.0f},{y:.0f})">'
+                f'<rect x="{-w/2:.0f}" y="-22" width="{w:.0f}" height="44" rx="22" fill="#ffffff" stroke="#9e1238" stroke-width="2"/>'
+                f'<circle cx="{-w/2 + 22:.0f}" cy="0" r="7" fill="#9e1238"/>'
+                f'<text x="{-w/2 + 38:.0f}" y="8" font-size="23" font-weight="700" fill="#1b201c" font-family="Bricolage Grotesque, system-ui, sans-serif">{nombre}'
+                + (f'<tspan fill="#9e1238" font-weight="800"> {n}</tspan>' if n else '') + '</text></g>')
+        if enlaces and nombre in enlaces:
+            nodo = f'<a href="{enlaces[nombre]}" tabindex="-1" class="enlace-zona">{nodo}</a>'
+        puntos.append(nodo)
     return (f'<g class="zonas"><g class="lineas" stroke="#ffffff" stroke-width="2.5" opacity=".9">{"".join(lineas)}</g>{"".join(puntos)}</g>')
 
 

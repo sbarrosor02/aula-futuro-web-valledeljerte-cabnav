@@ -238,7 +238,7 @@ def nav(desde):
     def li(pid, texto, extra=''):
         cur = ' aria-current="page"' if pid == desde else (' aria-current="true"' if pid in activos and P[pid]['tipo'] != 'curso' else '')
         return f'<li><a href="{rel(desde, pid)}"{cur}>{texto}{extra}</a>'
-    h = ['<ul>', li('inicio', 'Inicio') + '</li>', '<li class="sep" aria-hidden="true"></li>']
+    h = ['<ul>', li('inicio', 'Inicio') + '</li>', li('zonas', 'Zonas de aprendizaje') + '</li>', '<li class="sep" aria-hidden="true"></li>']
     for c in CURSOS:
         cur = ' aria-current="page"' if c['id'] == desde else ''
         h.append(f'<li class="grupo"><a href="{rel(desde, c["id"])}"{cur}><span>Curso {c["curso"]}</span><span class="ano">{ano(c["curso"])}</span></a><ul class="hijos">')
@@ -354,12 +354,33 @@ def tema_de(p):
     return paisaje.tema(m.get('areas', ''), m.get('areas', ''), p['titulo'], p['titulo'], p['texto'][:1500])
 
 
-ZONA_RE = re.compile(r'(?i)zona\s*(investiga|explora|interact[uú]a|desarrolla|crea|presenta|intercambia)')
+# Zonas de aprendizaje: se buscan cerca de la palabra "zona(s)" y en sus distintas formas
+# (Investiga / investigar / investigación, Presenta / presentación / exposición…)
+RAICES_ZONA = {
+    'Investiga': r'investig', 'Explora': r'explor', 'Interactúa': r'interact', 'Desarrolla': r'desarroll',
+    'Crea': r'\bcrea(?:r|ción|cion|tiv)?\b|\bcreaci', 'Presenta': r'present|exposici|exponer', 'Intercambia': r'intercambi',
+}
 
 
 def zonas_de(p):
-    vistas = {z.lower().replace('ú', 'u') for z in ZONA_RE.findall(p['texto'])}
-    return [z for z in paisaje.ZONAS + ['Intercambia'] if z.lower().replace('ú', 'u') in vistas]
+    t = p['texto']
+    ventanas = [t[m.start():m.start() + 260] for m in re.finditer(r'(?i)\bzonas?\b', t)]
+    if not ventanas:
+        return []
+    encontradas = []
+    for z, raiz in RAICES_ZONA.items():
+        if any(re.search(raiz, v, re.I) for v in ventanas):
+            encontradas.append(z)
+    # "Intercambia" es el nombre antiguo de "Explora": se agrupan
+    if 'Intercambia' in encontradas:
+        encontradas.remove('Intercambia')
+        if 'Explora' not in encontradas:
+            encontradas.insert(1, 'Explora')
+    return [z for z in paisaje.ZONAS if z in encontradas]
+
+
+def ancla_zona(z):
+    return 'zona-' + slug(z)
 
 
 def banda(p):
@@ -399,9 +420,14 @@ def tarjeta(desde, s, nivel='h3'):
 def v_inicio(p):
     total = sum(1 for x in paginas if x['tipo'] == 'sda')
     docentes = len({' '.join(sorted(slug(x['titulo']).split('-'))) for x in paginas if x['tipo'] == 'part'})
-    extra = paisaje.zonas(900, 620) + paisaje.petalos('portada', 900, 620)
+    cuentas = {z: len(ZONA_SDA[z]) for z in paisaje.ZONAS}
+    enlaces = {z: f'zonas.html#{ancla_zona(z)}' for z in paisaje.ZONAS}
+    extra = paisaje.zonas(900, 620, enlaces, cuentas) + paisaje.petalos('portada', 900, 620)
     sedes = (f'<div class="panorama">{paisaje.svg("portada-valle", "22-23", 900, 620, extra=extra)}'
-             f'<p class="sr">Las seis zonas de aprendizaje del Aula del Futuro: {", ".join(paisaje.ZONAS)}.</p></div>')
+             f'<p class="sr">Las seis zonas de aprendizaje del Aula del Futuro.</p></div>')
+    sedes += ('<nav class="zonas-portada" aria-label="Situaciones de aprendizaje por zona"><ul class="chips">'
+              + ''.join(f'<li><a class="chip zona" href="zonas.html#{ancla_zona(z)}">{z} <span aria-hidden="true">·</span> {cuentas[z]}</a></li>' for z in paisaje.ZONAS) + '</ul></nav>')
+    sedes = f'<div>{sedes}</div>'
     h = (f'<section class="portada" aria-labelledby="titulo-portada"><div>'
          f'<h1 id="titulo-portada">Dos sedes, dos aulas, un mismo proyecto</h1>'
          f'<p>El IES Valle del Jerte transforma sus espacios de Cabezuela del Valle y Navaconcejo para aprender investigando, creando y colaborando. Desde el curso 2022-2023 se han hecho {total} situaciones de aprendizaje con {docentes} docentes.</p>'
@@ -480,7 +506,7 @@ def v_sda(p):
         filas.append(('Áreas y materias', esc(m['areas'])))
     zs = zonas_de(p)
     if zs:
-        filas.append(('Zonas del aula', '<ul class="chips">' + ''.join(f'<li><span class="chip zona">{z}</span></li>' for z in zs) + '</ul>'))
+        filas.append(('Zonas del aula', '<ul class="chips">' + ''.join(f'<li><a class="chip zona" href="{raiz(p["id"])}zonas.html#{ancla_zona(z)}">{z}</a></li>' for z in zs) + '</ul>'))
     if p.get('docentes'):
         chips = ''.join(f'<li><a class="chip{" colabora" if e["rol"] == "colabora" else ""}" href="{rel(p["id"], e["id"])}">{esc(P[e["id"]]["titulo"])}'
                         + ('<span class="sr"> (colabora)</span>' if e['rol'] == 'colabora' else '') + '</a></li>' for e in p['docentes'])
@@ -508,6 +534,22 @@ def v_generica(p):
     sub = hijos.get(p['id'], [])
     h += f'<div class="contenido lectura">{drive_cards(prepara_html(p["id"], p["html"]))}</div>' if p['html'] else ('' if sub else '<p class="vacio-aviso">Esta página no tiene contenido en el site original.</p>')
     return pagina(p, h + pie_original(p))
+
+
+ZONA_SDA = {z: [] for z in paisaje.ZONAS}
+for _s in paginas:
+    if _s['tipo'] == 'sda':
+        for _z in zonas_de(_s):
+            ZONA_SDA[_z].append(_s)
+
+DESCRIPCION_ZONA = {
+    'Investiga': 'Buscar información, experimentar y analizar datos.',
+    'Explora': 'Descubrir y manipular materiales, recursos y entornos.',
+    'Interactúa': 'Debatir, colaborar y trabajar en equipo.',
+    'Desarrolla': 'Trabajar de forma autónoma y reflexionar sobre lo aprendido.',
+    'Crea': 'Diseñar y producir: vídeos, maquetas, programas, prototipos.',
+    'Presenta': 'Exponer y compartir el trabajo con los demás.',
+}
 
 
 VISTAS = {'inicio': v_inicio, 'curso': v_curso, 'sda-index': v_sda_index, 'part-index': v_part_index, 'sda': v_sda, 'part': v_part}
@@ -538,6 +580,19 @@ for p in paginas:
                    'n': re.sub(r'[̀-ͯ]', '', unicodedata.normalize('NFD', p['titulo'].lower())),
                    'x': re.sub(r'[̀-ͯ]', '', unicodedata.normalize('NFD', t.lower()))})
 open(os.path.join(OUT, 'assets', 'indice.js'), 'w', encoding='utf-8').write('window.INDICE=' + json.dumps(indice, ensure_ascii=False, separators=(',', ':')) + ';')
+
+zp = {'id': 'zonas', 'titulo': 'Zonas de aprendizaje', 'tipo': 'otra', 'padre': None, 'curso': None, 'html': '', 'texto': '', 'url': None}
+P['zonas'] = zp
+total_con = len({s['id'] for v in ZONA_SDA.values() for s in v})
+cuerpo = (f'{migas(zp)}<h1 class="titulo">Zonas de aprendizaje</h1>'
+          f'<p class="subtitulo">El Aula del Futuro se organiza en seis zonas. {total_con} situaciones de aprendizaje indican qué zonas usaron; '
+          f'las de este curso las recogen todas.</p><ul class="chips indice-zonas">'
+          + ''.join(f'<li><a class="chip zona" href="#{ancla_zona(z)}">{z} <span aria-hidden="true">·</span> {len(ZONA_SDA[z])}</a></li>' for z in paisaje.ZONAS) + '</ul>')
+for z in paisaje.ZONAS:
+    lista = sorted(ZONA_SDA[z], key=lambda s: s.get('curso') or '', reverse=True)
+    cuerpo += (f'<section aria-labelledby="{ancla_zona(z)}"><h2 class="seccion-titulo" id="{ancla_zona(z)}">{z} <span class="n">{len(lista)} situaciones</span></h2>'
+               f'<p class="desc-zona">{DESCRIPCION_ZONA[z]}</p><ul class="rejilla">{"".join(tarjeta("zonas", s) for s in lista)}</ul></section>')
+open(os.path.join(OUT, 'zonas.html'), 'w', encoding='utf-8').write(pagina(zp, cuerpo, descripcion='Situaciones de aprendizaje del Aula del Futuro del IES Valle del Jerte agrupadas por zona de aprendizaje.'))
 
 busq = {'id': 'buscar', 'titulo': 'Buscar', 'tipo': 'otra', 'padre': None, 'curso': None, 'html': '', 'texto': '', 'url': None}
 P['buscar'] = busq
